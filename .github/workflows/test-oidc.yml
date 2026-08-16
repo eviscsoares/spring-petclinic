@@ -1,0 +1,44 @@
+name: Test OIDC Authentication
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  test-oidc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug OIDC
+        run: |
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
+          echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN: $ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+
+      - name: Test OIDC manual
+        run: |
+          # Pega o token OIDC
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value')
+          echo "Token obtido (primeiros 20 caracteres): ${TOKEN:0:20}..."
+
+          # Testa assumir a role manualmente
+          aws sts assume-role-with-web-identity \
+            --role-arn ${{ secrets.AWS_ROLE_ARN }} \
+            --role-session-name GitHubActionsTest \
+            --web-identity-token $TOKEN \
+            --duration-seconds 300
+
+      - name: Test with AWS credentials action
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: List ECR repositories (if auth works)
+        run: |
+          aws ecr describe-repositories --region ${{ secrets.AWS_REGION }}
