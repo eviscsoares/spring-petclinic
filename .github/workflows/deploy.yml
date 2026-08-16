@@ -1,0 +1,57 @@
+name: Build and Deploy Petclinic
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: petclinic
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Maven
+        run: ./mvnw package -DskipTests
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        run: |
+          docker build -t ${{ secrets.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+          docker push ${{ secrets.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          SHA_TAG=$(git rev-parse --short HEAD)
+          docker tag ${{ secrets.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest ${{ secrets.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$SHA_TAG
+          docker push ${{ secrets.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$SHA_TAG
+
+      - name: Update deployment manifest
+        run: |
+          SHA_TAG=$(git rev-parse --short HEAD)
+          sed -i "s|image: .*|image: ${{ secrets.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$SHA_TAG|g" deployment.yaml
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add deployment.yaml
+          git commit -m "Update image tag to $SHA_TAG" || echo "No changes to commit"
+          git push
