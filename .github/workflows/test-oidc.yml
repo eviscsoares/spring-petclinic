@@ -31,7 +31,7 @@ jobs:
             --role-arn ${{ secrets.AWS_ROLE_ARN }} \
             --role-session-name GitHubActionsTest \
             --web-identity-token $TOKEN \
-            --duration-seconds 300
+            --duration-seconds 900
 
       - name: Test with AWS credentials action
         uses: aws-actions/configure-aws-credentials@v4
