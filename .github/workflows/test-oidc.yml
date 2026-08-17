@@ -24,7 +24,5 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           audience: https://amazonaws.com
-
-      - name: List ECR repositories
-        run: |
-          aws ecr describe-repositories
+          # IMPORTANTE: A sintaxe correta do parâmetro usa underscores (_) e não hifens
+          mask-aws-account-id: 'true'
