@@ -8,25 +8,15 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  AWS_REGION: us-east-1
-
 jobs:
-  test-oidc:
+  descobrir-meu-id:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Test with AWS credentials action
-        # Atualizado para a subversão estável que corrige problemas de handshake OIDC
-        uses: aws-actions/configure-aws-credentials@v4.1.0
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          audience: https://amazonaws.com # Força o cabeçalho correto no token do GitHub
-          aws-sts-regional-endpoints: "regional"
-
-      - name: List ECR repositories
+      - name: Extrair e Decodificar o Token OIDC real
         run: |
-          aws ecr describe-repositories
+          # Captura o token oficial com a audiência da AWS
+          JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          
+          # Desmembra e decodifica o cabeçalho do token (JWT) sem expor chaves sensíveis
+          echo "=== CONTEÚDO REAL QUE O GITHUB ENVIA ==="
+          echo $JWT | cut -d'.' -f2 | base64 --decode | jq .
