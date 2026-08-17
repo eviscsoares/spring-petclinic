@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 permissions:
-  id-token: write  # Obrigatório para gerar o token OIDC
+  id-token: write  # Crucial para habilitar a geração de tokens OIDC no runner
   contents: read
 
 env:
@@ -18,26 +18,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Autenticar na AWS via OIDC Nativo
-        run: |
-          # 1. Solicita o token OIDC oficial ao GitHub com a audiência correta
-          JWT_TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=://amazonaws.com" | jq -r '.value')
-          
-          # 2. Assume a Role diretamente na CLI da AWS e extrai as credenciais temporárias
-          CREDENTIALS=$(aws sts assume-role-with-web-identity \
-            --role-arn "${{ secrets.AWS_ROLE_ARN }}" \
-            --role-session-name "GitHubActionsSession" \
-            --web-identity-token "$JWT_TOKEN" \
-            --duration-seconds 900 \
-            --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
-            --output text)
-          
-          # 3. Injeta as credenciais no ambiente do runner para os próximos passos utilizarem
-          echo "AWS_ACCESS_KEY_ID=$(echo "$CREDENTIALS" | awk '{print $1}')" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$(echo "$CREDENTIALS" | awk '{print $2}')" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$(echo "$CREDENTIALS" | awk '{print $3}')" >> $GITHUB_ENV
+      - name: Test with AWS credentials action
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com # Força o GitHub a carregar a assinatura aceita pela AWS
 
       - name: List ECR repositories
         run: |
-          # Este passo agora utilizará as variáveis injetadas no ambiente de forma instantânea
           aws ecr describe-repositories
