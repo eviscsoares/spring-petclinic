@@ -8,15 +8,23 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  AWS_REGION: us-east-1
+
 jobs:
-  descobrir-meu-id:
+  test-oidc:
     runs-on: ubuntu-latest
     steps:
-      - name: Extrair e Decodificar o Token OIDC real
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Test with AWS credentials action
+        uses: aws-actions/configure-aws-credentials@v4.1.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: https://amazonaws.com
+
+      - name: List ECR repositories
         run: |
-          # Captura o token oficial com a audiência da AWS
-          JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          
-          # Desmembra e decodifica o cabeçalho do token (JWT) sem expor chaves sensíveis
-          echo "=== CONTEÚDO REAL QUE O GITHUB ENVIA ==="
-          echo $JWT | cut -d'.' -f2 | base64 --decode | jq .
+          aws ecr describe-repositories
