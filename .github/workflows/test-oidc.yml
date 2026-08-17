@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 permissions:
-  id-token: write
+  id-token: write  # Obrigatório para gerar o token OIDC correto
   contents: read
 
 env:
@@ -15,30 +15,17 @@ jobs:
   test-oidc:
     runs-on: ubuntu-latest
     steps:
-      - name: Debug OIDC
-        run: |
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
-          echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN: $ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Test OIDC manual
-        run: |
-          # Pega o token OIDC
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value')
-          echo "Token obtido (primeiros 20 caracteres): ${TOKEN:0:20}..."
-
-          # Testa assumir a role manualmente
-          aws sts assume-role-with-web-identity \
-            --role-arn ${{ secrets.AWS_ROLE_ARN }} \
-            --role-session-name GitHubActionsTest \
-            --web-identity-token $TOKEN \
-            --duration-seconds 900
-
+      # Deixe apenas a Action oficial fazer o trabalho pesado
       - name: Test with AWS credentials action
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: List ECR repositories (if auth works)
+      # Se a autenticação funcionar, este passo vai listar seus repositórios
+      - name: List ECR repositories
         run: |
-          aws ecr describe-repositories --region ${{ secrets.AWS_REGION }}
+          aws ecr describe-repositories
