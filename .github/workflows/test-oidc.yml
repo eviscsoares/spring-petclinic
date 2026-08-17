@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 permissions:
-  id-token: write  # Obrigatório para gerar o token OIDC correto
+  id-token: write
   contents: read
 
 env:
@@ -18,14 +18,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Deixe apenas a Action oficial fazer o trabalho pesado
       - name: Test with AWS credentials action
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          # Força o uso do endpoint regionalizado (://amazonaws.com) evitando rotas globais travadas
+          aws-sts-regional-endpoints: "regional"
 
-      # Se a autenticação funcionar, este passo vai listar seus repositórios
       - name: List ECR repositories
         run: |
           aws ecr describe-repositories
