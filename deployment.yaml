@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: spring-petclinic
-        image: 389400911760.dkr.ecr.us-east-1.amazonaws.com/k3s-lab/spring-petclinic:latest
+        image: 389400911760.dkr.ecr.us-east-1.amazonaws.com/k3s-lab/spring-petclinic:8adcce9
         ports:
         - containerPort: 8080
 ---
